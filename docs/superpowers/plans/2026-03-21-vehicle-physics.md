@@ -1773,9 +1773,12 @@ namespace LonelyHighway.Vehicle
             // 1. Raycast all wheels
             var hits = new WheelHitInfo[4];
             WheelRaycast[] wheels = { wheelFL, wheelFR, wheelRL, wheelRR };
+            DamagePanel[] wheelPanels = { DamagePanel.FrontLeft, DamagePanel.FrontRight, DamagePanel.RearLeft, DamagePanel.RearRight };
             for (int i = 0; i < 4; i++)
             {
-                hits[i] = wheels[i].CastWheel(profile.restLength, profile.maxTravel, profile.wheelRadius);
+                float sagMultiplier = _damageState.GetSuspensionSagMultiplier(wheelPanels[i], profile);
+                float effectiveRestLength = profile.restLength * sagMultiplier;
+                hits[i] = wheels[i].CastWheel(effectiveRestLength, profile.maxTravel, profile.wheelRadius);
             }
 
             // 2. Suspension forces
@@ -2192,14 +2195,14 @@ namespace LonelyHighway.Tests.PlayMode
 Run: Test Runner → PlayMode → Run All
 Expected: All PASS
 
-- [ ] **Step 7: Manual drive test**
+- [ ] **Step 6: Manual drive test**
 
 Enter Play mode in TestTrack scene. Use WASD to drive:
 - W = throttle, S = brake, A/D = steer, Space = handbrake
 - Verify: car moves forward, steers, brakes, doesn't jitter or fall through ground
 - Verify: speed-sensitive steering feels correct (less steering at speed)
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add Assets/LonelyHighway/Prefabs/ Assets/Tests/PlayMode/ Assets/LonelyHighway/Scenes/TestTrack.unity
