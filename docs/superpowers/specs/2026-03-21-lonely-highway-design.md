@@ -40,21 +40,34 @@ An offline tool that converts real Shenzhen geographic data into Unity assets.
 ### Data sources
 
 - **OpenStreetMap via Overpass API** — roads (lane count, speed limits, surface type), buildings (footprints + height tags), land use zones, traffic signals, crosswalks
-- **SRTM/ASTER elevation data** — terrain height for hills and overpasses
+- **SRTM/ASTER elevation data** — base terrain height only (hills, slopes). Not used for vertical road positioning — that comes from OSM `layer`, `bridge`, and `tunnel` tags
 
 ### Processing stages
 
 1. **Fetch** — Download OSM data for a bounding box covering Shenzhen (or specific districts)
 2. **Parse** — Extract road centerlines, building polygons, signal positions, lane metadata
-3. **Road mesh generation** — Extrude centerlines into road surfaces with lane widths, curbs, medians, elevated sections. Tag each segment with surface type (asphalt, concrete) for physics
-4. **Building shell generation** — Extrude footprints to height. Classify by OSM tags (residential, commercial, industrial) for facade variation
-5. **Traffic graph generation** — Build a directed lane graph with connections, signal phases, speed limits. This is what Traffic AI pathfinds on
-6. **Tile chunking** — Divide the city into a grid (256m x 256m tiles). Each tile becomes a Unity scene with road meshes, building meshes, and traffic graph data as ScriptableObjects
-7. **Export** — glTF meshes + ScriptableObjects + tile metadata JSON
+3. **Road mesh generation** — Extrude centerlines into road surfaces with lane widths, curbs, medians. Tag each segment with surface type (asphalt, concrete) for physics
+4. **Elevated/tunnel handling** — Use OSM `layer=*`, `bridge=yes`, `tunnel=yes` tags to set vertical positioning. Elevated roads are placed at layer height (default 8m per layer). Tunnel roads are placed below ground with portal geometry. Ramp connections between levels use OSM link ways. Colliders generated for each level independently so vehicles can drive under overpasses
+5. **Building shell generation** — Extrude footprints to height. Classify by OSM tags (residential, commercial, industrial) for facade variation
+6. **Traffic graph generation** — Build a directed lane graph with connections, signal phases, speed limits. This is what Traffic AI pathfinds on. Multi-level interchanges produce separate subgraphs per layer, connected by ramp edges
+7. **Tile chunking** — Divide the city into a grid (512m x 512m tiles). Each tile becomes a Unity scene with road meshes, building meshes, and traffic graph data as ScriptableObjects. Features crossing tile boundaries are duplicated into both tiles with shared edge IDs for seam stitching
+8. **Export** — glTF meshes + ScriptableObjects + tile metadata JSON
+
+### Data fallback strategy
+
+OSM coverage in Shenzhen is uneven. The pipeline applies defaults when tags are missing:
+
+| Missing data | Fallback |
+|-------------|----------|
+| Lane count | Infer from `highway` classification: `primary` = 3 lanes/dir, `secondary` = 2, `tertiary` = 1 |
+| Speed limit | Infer from road class: `motorway` = 100, `primary` = 60, `secondary` = 40, `residential` = 30 (km/h) |
+| Building height | Infer from land use zone: commercial = 40m, residential = 25m, industrial = 12m |
+| Surface type | Default asphalt for all roads |
+| Signal timing | Estimate from intersection complexity: 2-way = 60s cycle, 4-way = 90s, complex = 120s |
 
 ### Language
 
-Rust (consistent with the arnis reference project). Could also be Python with osmium + trimesh.
+Rust (consistent with the arnis reference project).
 
 ### Output per tile
 
@@ -74,7 +87,7 @@ Loads Shenzhen around the player as they drive, managing memory and performance.
 
 ### Tile grid
 
-- City divided into 256m x 256m tiles
+- City divided into 512m x 512m tiles (larger than typical to reduce tile-crossing frequency at highway speeds)
 - Each tile is a Unity Addressable scene containing road meshes, building meshes, and traffic graph data
 
 ### Loading rings
@@ -93,9 +106,13 @@ Loads Shenzhen around the player as they drive, managing memory and performance.
 - Additive scene loading via `SceneManager.LoadSceneAsync` with `LoadSceneMode.Additive`
 - Traffic AI vehicles are pooled — returned on tile unload, spawned on tile load
 
+### Tile boundary stitching
+
+Features (roads, buildings) that cross tile boundaries are duplicated into both tiles during the pipeline's chunking stage. Each duplicate carries a shared edge ID. At runtime, the streaming system matches edge IDs between adjacent loaded tiles and snaps vertices to eliminate seams. Traffic graph edges crossing tile boundaries use the same shared ID mechanism for seamless AI pathfinding.
+
 ### Floating origin
 
-Shenzhen spans ~80km. Unity float precision degrades far from origin. Periodically recenter the world origin to the player position, shifting all loaded objects.
+Shenzhen spans ~80km. Unity float precision degrades far from origin. Recenter the world origin when the player moves more than 2km from current origin. Recentering shifts all loaded GameObjects in a single frame during `LateUpdate`, after physics has resolved. Performed only when no async tile loads are in flight to avoid race conditions.
 
 ### Memory budget
 
@@ -150,11 +167,19 @@ Custom raycast vehicle controller — Unity's built-in WheelCollider is insuffic
 
 ### Cameras
 
-- Interior (dashboard view with functional mirrors)
+- Interior (dashboard view with mirrors — rendered at half resolution, updated at 30fps to manage performance cost of 3 extra camera renders)
 - Hood cam
 - Chase cam
 - Free look
 - Head bob and sway tied to suspension movement in interior view
+
+### Collision & damage model
+
+- Collisions detected via Unity's physics collision callbacks on the vehicle body collider
+- **Visual damage:** Deformation mesh vertices displaced at impact point, cracked light textures swap, paint scratches. Damage state stored as a per-panel health value (0-100%)
+- **Mechanical damage:** Alignment drift (steering pulls), engine stutter (random torque drops), suspension sag. Each maps to a physics parameter modifier
+- **Recovery:** Slow passive recovery over time (alignment self-corrects over ~5 minutes of driving). Full instant repair at garage locations
+- **Garages:** Fixed map locations marked in OSM data (tagged `shop=car_repair` or manually placed). Appear on minimap. Player drives in, brief fade-to-black, vehicle fully repaired. No cost — garages are a convenience, not a punishment
 
 ### Initial vehicle
 
@@ -172,7 +197,9 @@ Dense, reactive traffic that makes Shenzhen feel real.
 
 - Directed graph from OSM pipeline: nodes are lane waypoints, edges are lane segments
 - Encodes: speed limit, lane type (driving, bus, turn-only), signal group, yield rules
-- Intersections are subgraphs with connection lanes (left turn, right turn, straight through)
+- Intersections are subgraphs with connection lanes (left turn, right turn, straight through, U-turn)
+- Highway on/off ramps encoded as yield-merge edges with gap-acceptance behavior
+- Roundabouts encoded as circular one-way subgraphs with yield-on-entry
 
 ### Traffic signals
 
@@ -186,14 +213,21 @@ Dense, reactive traffic that makes Shenzhen feel real.
 2. **Drive layer** — Follow lane centerline, maintain speed limit, decelerate for curves, stop at red signals, yield at merges. Intelligent Driver Model (IDM) for car-following and spacing
 3. **React layer** — Respond to dynamic events: player cutting in, emergency stops, lane changes to pass slow vehicles, honking when blocked
 
+### Special vehicle types
+
+- **Buses:** Follow designated bus lanes, stop at bus stops (pull over, pause 15-30s, re-merge). Routes derived from OSM `route=bus` relations where available
+- **E-bikes/scooters:** High-frequency, lower speed, weave between lanes. Spawn on bike lanes and road edges. Significant presence in Shenzhen traffic — adds realism and challenge
+- Emergency vehicles (ambulance, police) are out of scope for initial build
+
 ### Density by time of day
+
+Base density values, modified by a weather multiplier (heavy rain/fog = 0.8x):
 
 | Time | Density | Behavior |
 |------|---------|----------|
 | Rush hour (7-9am, 5-7pm) | Maximum | Slow speeds, signal queuing |
 | Midday | Moderate | Normal flow |
 | Night (11pm-5am) | Sparse | Faster flow, fewer vehicles |
-| Heavy weather | Slightly reduced | All periods |
 
 ### Pedestrians
 
@@ -211,9 +245,10 @@ Dense, reactive traffic that makes Shenzhen feel real.
 
 ### Pool budget
 
-- ~200 fully simulated vehicles
+- ~300 fully simulated vehicles (tuned to support ~30-50 vehicles visible at major intersections, across 9 active tiles)
 - ~500 rail vehicles
 - Unlimited ghost particles
+- Budget is a tuning target — profiling during development will determine final numbers
 
 ---
 
@@ -262,7 +297,7 @@ Day-night cycle, weather, and the soundscape.
 | FM 88.1 | Lo-fi / chillhop instrumentals |
 | FM 94.6 | Cantonese & Mandarin pop |
 | FM 101.3 | Electronic / synthwave |
-| FM 107.8 | Talk radio (city tips, fake ads, Shenzhen trivia) |
+| FM 107.8 | Talk radio (city tips, fake ads, Shenzhen trivia) — requires voice content production; placeholder static/music for initial build |
 
 - Radio off by default — ambient soundscape is the baseline
 - 2 stations available at start, remaining 2 unlocked via milestones
@@ -314,6 +349,30 @@ Collisions cause visual damage (dents, cracked lights) and mechanical effects (a
 
 ---
 
+## 8. UI / HUD
+
+### In-game HUD (minimal, sim-appropriate)
+
+- **Speedometer** — analog gauge in dashboard (interior cam) or small digital overlay (other cams), showing km/h
+- **Tachometer** — RPM gauge, visible in interior cam dashboard
+- **Gear indicator** — current gear (or "A" for auto mode)
+- **Turn signal indicators** — left/right arrows, visible in all camera modes
+- **Minimap** — small corner map showing nearby roads, player position, discovered/undiscovered areas. Garage locations marked. Togglable
+- **Milestone notification** — subtle toast notification when a milestone is unlocked, fades after 3 seconds
+- **Radio display** — station name and frequency, shown briefly on station change
+
+### Menus
+
+- **Pause menu** — Resume, Map (full-screen discovered road map), Stats, Milestones, Settings, Quit
+- **Settings** — Graphics (resolution, quality presets, mirror quality), Audio (master, ambient, radio, engine volumes), Controls (sensitivity, deadzone, peripheral mapping), Gameplay (time scale, units km/mi)
+- **Garage screen** — Cosmetics selection (paint, dashboard items), damage status, repair button
+
+### Design principle
+
+HUD is minimal by default. Interior cam shows dashboard instruments; external cams show only a small speed readout and minimap. No clutter — the city is the focus.
+
+---
+
 ## Technical Decisions
 
 | Decision | Choice | Rationale |
@@ -327,6 +386,7 @@ Collisions cause visual damage (dents, cracked lights) and mechanical effects (a
 | Input | Unity Input System | Supports gamepad + steering wheels |
 | Rendering | URP (Universal Render Pipeline) | Good balance of quality and performance for sim |
 | Audio | FMOD or Wwise | Professional spatial audio, radio system support |
+| Pipeline language | Rust | Consistent with arnis reference, performant for mesh generation |
 
 ---
 
@@ -337,3 +397,24 @@ Collisions cause visual damage (dents, cracked lights) and mechanical effects (a
 - **Medium scope:** ~12-18 month development timeline for a vertical slice
 - **Platform:** PC first (Windows), expandable to console
 - **Target performance:** 60fps at 1080p on mid-range hardware
+- **Pipeline integration:** Rust tool runs outside Unity, outputs to an `Assets/GeneratedTiles/` directory. Unity Editor script auto-imports on refresh. Pipeline is run per-district during development, full city for release builds
+- **Estimated generated data:** ~2-4 GB for full Shenzhen (meshes + traffic graphs + metadata)
+
+### Out of scope (initial build)
+
+- Multiplayer
+- On-foot gameplay / character models
+- Interior building exploration
+- Vehicle purchasing / economy
+- Emergency vehicles
+- Motorcycles or vehicle classes beyond the sedan
+- Mobile platform
+- Voice-acted radio content (placeholder music/static for talk radio initially)
+
+### URP rendering notes
+
+Required URP features for visual targets:
+- Screen-space reflections (wet road surfaces)
+- Volumetric fog (fog weather state, night haze)
+- Emissive materials at scale (building windows, neon signs)
+- All confirmed available in URP 14+ (Unity 2022.3 LTS or later)
