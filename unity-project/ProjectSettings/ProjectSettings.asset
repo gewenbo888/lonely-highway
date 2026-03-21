@@ -1,0 +1,9 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!129 &1
+PlayerSettings:
+  productName: LonelyHighway
+  companyName: DefaultCompany
+  defaultScreenWidth: 1920
+  defaultScreenHeight: 1080
+  activeInputHandler: 2

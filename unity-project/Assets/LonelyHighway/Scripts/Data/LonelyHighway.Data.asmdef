@@ -1,0 +1,7 @@
+{
+  "name": "LonelyHighway.Data",
+  "rootNamespace": "LonelyHighway.Data",
+  "references": [],
+  "includePlatforms": [],
+  "autoReferenced": true
+}

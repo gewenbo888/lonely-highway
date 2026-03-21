@@ -1,0 +1,8 @@
+{
+  "name": "PlayModeVehicleTests",
+  "rootNamespace": "LonelyHighway.Tests.PlayMode",
+  "references": ["LonelyHighway.Vehicle"],
+  "includePlatforms": [],
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}

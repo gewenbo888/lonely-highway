@@ -1,0 +1,7 @@
+{
+  "name": "LonelyHighway.Vehicle",
+  "rootNamespace": "LonelyHighway.Vehicle",
+  "references": ["Unity.InputSystem", "LonelyHighway.Data"],
+  "includePlatforms": [],
+  "autoReferenced": true
+}

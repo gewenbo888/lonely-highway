@@ -1,0 +1,8 @@
+{
+  "name": "EditModeVehicleTests",
+  "rootNamespace": "LonelyHighway.Tests.EditMode",
+  "references": ["LonelyHighway.Vehicle"],
+  "includePlatforms": ["Editor"],
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}
