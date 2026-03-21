@@ -272,12 +272,11 @@ function createGround() {
 
 function createCityFromData(data) {
   const roads = data.roads || [];
-  const buildings = data.buildings || [];
   const signals = data.signals || [];
 
   cityRoads = roads; // store for AI traffic
 
-  // ── Roads ──
+  // ── Roads (real OSM layout, raised to y=0.05 to avoid Z-fighting) ──
   const roadMat = new THREE.MeshBasicMaterial({ color: 0x333344 });
   const dashMat = new THREE.MeshBasicMaterial({ color: 0xcccccc });
 
@@ -311,9 +310,9 @@ function createCityFromData(data) {
 
       const vi = vertices.length / 3;
       // Left edge
-      vertices.push(px + nx * halfWidth, py + 0.02, pz + nz * halfWidth);
+      vertices.push(px + nx * halfWidth, 0.05, pz + nz * halfWidth);
       // Right edge
-      vertices.push(px - nx * halfWidth, py + 0.02, pz - nz * halfWidth);
+      vertices.push(px - nx * halfWidth, 0.05, pz - nz * halfWidth);
 
       if (i < pts.length - 1) {
         const base = vi;
@@ -334,8 +333,8 @@ function createCityFromData(data) {
     // Center dashed line
     let accDist = 0;
     for (let i = 0; i < pts.length - 1; i++) {
-      const ax = pts[i][0], ay = pts[i][1] || 0, az = pts[i][2] || 0;
-      const bx = pts[i + 1][0], by = pts[i + 1][1] || 0, bz = pts[i + 1][2] || 0;
+      const ax = pts[i][0], az = pts[i][2] || 0;
+      const bx = pts[i + 1][0], bz = pts[i + 1][2] || 0;
       const segDx = bx - ax, segDz = bz - az;
       const segLen = Math.sqrt(segDx * segDx + segDz * segDz);
       if (segLen < 0.1) continue;
@@ -349,13 +348,12 @@ function createCityFromData(data) {
           const dashLen = Math.min(3, segLen - d);
           if (dashLen > 0.5) {
             const cx = ax + ux * (d + dashLen / 2);
-            const cy = ((ay + by) / 2) + 0.04;
             const cz = az + uz * (d + dashLen / 2);
             const dashGeo = new THREE.PlaneGeometry(0.2, dashLen);
             const dash = new THREE.Mesh(dashGeo, dashMat);
             dash.rotation.x = -Math.PI / 2;
             dash.rotation.z = -angle;
-            dash.position.set(cx, cy, cz);
+            dash.position.set(cx, 0.06, cz);
             scene.add(dash);
           }
         }
@@ -365,147 +363,271 @@ function createCityFromData(data) {
     }
   }
 
-  // ── Buildings ──
+  // ── Procedural Buildings along real roads ──
+  // Instead of using OSM footprints (which cause ExtrudeGeometry clipping),
+  // place simple box buildings along each road segment.
   const neonColors = [0xff0066, 0x00ffff, 0xff6600, 0x00ff66, 0xff00ff, 0x6666ff, 0xffff00, 0x00aaff];
+  const placedBuildings = []; // track positions to avoid overlaps
 
-  for (const bld of buildings) {
-    const fp = bld.footprint;
-    if (!fp || fp.length < 3) continue;
-    const height = bld.height || 10;
-    const btype = bld.type || 'Other';
+  function canPlace(x, z, w, d) {
+    for (const b of placedBuildings) {
+      const dx = Math.abs(x - b.x);
+      const dz = Math.abs(z - b.z);
+      if (dx < (w + b.w) * 0.5 + 1 && dz < (d + b.d) * 0.5 + 1) return false;
+    }
+    return true;
+  }
 
-    // Choose building color by type — brighter so walls are visible at night
-    let wallColor, windowChance;
-    if (btype === 'Commercial') {
-      wallColor = new THREE.Color().setHSL(0.6, 0.12, 0.22 + Math.random() * 0.06);
-      windowChance = 0.6;
-    } else if (btype === 'Residential') {
-      wallColor = new THREE.Color().setHSL(0.08 + Math.random() * 0.05, 0.15, 0.18 + Math.random() * 0.06);
-      windowChance = 0.35;
-    } else if (btype === 'Industrial') {
-      wallColor = new THREE.Color().setHSL(0, 0, 0.15 + Math.random() * 0.05);
-      windowChance = 0.15;
+  for (const road of roads) {
+    const pts = road.points;
+    if (pts.length < 2) continue;
+    const lanes = road.lanes || 2;
+    const halfWidth = (lanes * 3.5) / 2;
+    const roadClass = road.class || '';
+
+    // Determine building density and height range based on road class
+    let spacing, minH, maxH, minW, maxW, minD, maxD, offset;
+    if (['Primary', 'Trunk', 'TrunkLink', 'PrimaryLink'].includes(roadClass)) {
+      spacing = 18 + Math.random() * 12;
+      minH = 20; maxH = 80;
+      minW = 12; maxW = 25;
+      minD = 12; maxD = 25;
+      offset = halfWidth + 8 + Math.random() * 6;
+    } else if (['Secondary', 'SecondaryLink', 'Tertiary', 'TertiaryLink'].includes(roadClass)) {
+      spacing = 14 + Math.random() * 10;
+      minH = 10; maxH = 50;
+      minW = 8; maxW = 20;
+      minD = 8; maxD = 20;
+      offset = halfWidth + 5 + Math.random() * 4;
     } else {
-      wallColor = new THREE.Color().setHSL(Math.random(), 0.08, 0.15 + Math.random() * 0.06);
-      windowChance = 0.2;
+      spacing = 12 + Math.random() * 8;
+      minH = 8; maxH = 30;
+      minW = 8; maxW = 15;
+      minD = 8; maxD = 15;
+      offset = halfWidth + 4 + Math.random() * 3;
     }
 
-    // Create extruded building from footprint
-    const shape = new THREE.Shape();
-    shape.moveTo(fp[0][0], fp[0][1]);
-    for (let i = 1; i < fp.length; i++) {
-      shape.lineTo(fp[i][0], fp[i][1]);
-    }
-    shape.closePath();
+    // Walk along road and place buildings on both sides
+    let accDist = 0;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const ax = pts[i][0], az = pts[i][2] || 0;
+      const bx = pts[i + 1][0], bz = pts[i + 1][2] || 0;
+      const segDx = bx - ax, segDz = bz - az;
+      const segLen = Math.sqrt(segDx * segDx + segDz * segDz);
+      if (segLen < 1) { accDist += segLen; continue; }
+      const ux = segDx / segLen, uz = segDz / segLen;
+      // Perpendicular
+      const nx = -uz, nz = ux;
 
-    const extrudeSettings = { depth: height, bevelEnabled: false };
-    const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+      let d = spacing - (accDist % spacing);
+      while (d < segLen) {
+        const cx = ax + ux * d;
+        const cz = az + uz * d;
 
-    const mat = new THREE.MeshBasicMaterial({
-      color: wallColor,
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    // ExtrudeGeometry extrudes along Z in shape space; we need to rotate so it goes up (Y)
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = 0;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    scene.add(mesh);
-    buildingMeshes.push(mesh);
+        for (const side of [1, -1]) {
+          const bldgW = minW + Math.random() * (maxW - minW);
+          const bldgD = minD + Math.random() * (maxD - minD);
+          const bldgH = minH + Math.random() * (maxH - minH);
+          const jitter = (Math.random() - 0.5) * 4; // slight random offset along road
+          const sideOffset = offset + Math.random() * 6;
 
-    // Compute building center and approximate width for windows and neon
-    let cx = 0, cz = 0;
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for (const p of fp) {
-      cx += p[0]; cz += p[1];
-      minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
-      minZ = Math.min(minZ, p[1]); maxZ = Math.max(maxZ, p[1]);
-    }
-    cx /= fp.length; cz /= fp.length;
-    const bWidth = maxX - minX;
-    const bDepth = maxZ - minZ;
+          const bx2 = cx + nx * sideOffset * side + ux * jitter;
+          const bz2 = cz + nz * sideOffset * side + uz * jitter;
 
-    // Windows on major faces (front and back for simplicity)
-    if (height > 6) {
-      const windowRows = Math.floor(height / 4);
-      const windowCols = Math.max(1, Math.floor(bWidth / 3));
-      for (let wy = 0; wy < windowRows; wy++) {
-        for (let wx = 0; wx < windowCols; wx++) {
-          if (Math.random() > windowChance) continue;
-          const lit = Math.random() > 0.3;
-          let wColor;
-          if (btype === 'Commercial') {
-            wColor = lit
-              ? new THREE.Color().setHSL(0.55 + Math.random() * 0.1, 0.4, 0.6 + Math.random() * 0.3)
-              : new THREE.Color(0x111111);
-          } else if (btype === 'Residential') {
-            wColor = lit
-              ? new THREE.Color().setHSL(0.1 + Math.random() * 0.1, 0.3, 0.5 + Math.random() * 0.3)
-              : new THREE.Color(0x111111);
+          if (!canPlace(bx2, bz2, bldgW, bldgD)) continue;
+
+          // Building type heuristics
+          let wallColor, windowChance, btype;
+          const typeRoll = Math.random();
+          if (typeRoll < 0.4) {
+            btype = 'Commercial';
+            wallColor = new THREE.Color().setHSL(0.6, 0.12, 0.22 + Math.random() * 0.06);
+            windowChance = 0.6;
+          } else if (typeRoll < 0.75) {
+            btype = 'Residential';
+            wallColor = new THREE.Color().setHSL(0.08 + Math.random() * 0.05, 0.15, 0.18 + Math.random() * 0.06);
+            windowChance = 0.35;
+          } else if (typeRoll < 0.9) {
+            btype = 'Industrial';
+            wallColor = new THREE.Color().setHSL(0, 0, 0.15 + Math.random() * 0.05);
+            windowChance = 0.15;
           } else {
-            wColor = lit
-              ? new THREE.Color().setHSL(0.15, 0.2, 0.3 + Math.random() * 0.2)
-              : new THREE.Color(0x111111);
+            btype = 'Other';
+            wallColor = new THREE.Color().setHSL(Math.random(), 0.08, 0.15 + Math.random() * 0.06);
+            windowChance = 0.2;
           }
-          const winGeo = new THREE.PlaneGeometry(1.5, 2);
-          const winMat = new THREE.MeshBasicMaterial({ color: wColor });
 
-          // Front face (max Z side)
-          const win = new THREE.Mesh(winGeo, winMat);
-          win.position.set(
-            minX + 2 + wx * 3,
-            3 + wy * 4,
-            maxZ + 0.05
-          );
-          scene.add(win);
+          // Simple BoxGeometry — no clipping issues
+          const geo = new THREE.BoxGeometry(bldgW, bldgH, bldgD);
+          const mat = new THREE.MeshBasicMaterial({ color: wallColor });
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.position.set(bx2, bldgH / 2, bz2); // base at y=0
+          // Slight random rotation for variety
+          mesh.rotation.y = Math.atan2(ux, uz) + (Math.random() - 0.5) * 0.15;
+          scene.add(mesh);
+          buildingMeshes.push(mesh);
+          placedBuildings.push({ x: bx2, z: bz2, w: bldgW, d: bldgD });
 
-          // Back face (min Z side)
-          const win2 = new THREE.Mesh(winGeo, winMat);
-          win2.position.set(
-            minX + 2 + wx * 3,
-            3 + wy * 4,
-            minZ - 0.05
-          );
-          win2.rotation.y = Math.PI;
-          scene.add(win2);
+          // ── Windows (MeshBasicMaterial, lit) ──
+          if (bldgH > 6) {
+            const windowRows = Math.floor(bldgH / 4);
+            const windowCols = Math.max(1, Math.floor(bldgW / 3));
+            const windowColsD = Math.max(1, Math.floor(bldgD / 3));
+            const bAngle = mesh.rotation.y;
+            const cosA = Math.cos(bAngle);
+            const sinA = Math.sin(bAngle);
+
+            for (let wy = 0; wy < windowRows; wy++) {
+              // Front and back faces (along bldgD axis)
+              for (let wx = 0; wx < windowCols; wx++) {
+                if (Math.random() > windowChance) continue;
+                const lit = Math.random() > 0.3;
+                let wColor;
+                if (btype === 'Commercial') {
+                  wColor = lit
+                    ? new THREE.Color().setHSL(0.55 + Math.random() * 0.1, 0.4, 0.6 + Math.random() * 0.3)
+                    : new THREE.Color(0x111111);
+                } else if (btype === 'Residential') {
+                  wColor = lit
+                    ? new THREE.Color().setHSL(0.1 + Math.random() * 0.1, 0.3, 0.5 + Math.random() * 0.3)
+                    : new THREE.Color(0x111111);
+                } else {
+                  wColor = lit
+                    ? new THREE.Color().setHSL(0.15, 0.2, 0.3 + Math.random() * 0.2)
+                    : new THREE.Color(0x111111);
+                }
+                const winGeo = new THREE.PlaneGeometry(1.5, 2);
+                const winMat = new THREE.MeshBasicMaterial({ color: wColor });
+
+                // Window local position relative to building center
+                const localX = -bldgW / 2 + 2 + wx * 3;
+                const localY = 3 + wy * 4;
+
+                // Front face (+Z local)
+                const fzOff = bldgD / 2 + 0.05;
+                const win = new THREE.Mesh(winGeo, winMat);
+                win.position.set(
+                  bx2 + cosA * localX - sinA * fzOff,
+                  localY,
+                  bz2 + sinA * localX + cosA * fzOff
+                );
+                win.rotation.y = bAngle;
+                scene.add(win);
+
+                // Back face (-Z local)
+                const win2 = new THREE.Mesh(winGeo, winMat);
+                win2.position.set(
+                  bx2 + cosA * localX + sinA * fzOff,
+                  localY,
+                  bz2 + sinA * localX - cosA * fzOff
+                );
+                win2.rotation.y = bAngle + Math.PI;
+                scene.add(win2);
+              }
+
+              // Side faces (along bldgW axis)
+              for (let wz = 0; wz < windowColsD; wz++) {
+                if (Math.random() > windowChance) continue;
+                const lit = Math.random() > 0.3;
+                let wColor;
+                if (btype === 'Commercial') {
+                  wColor = lit
+                    ? new THREE.Color().setHSL(0.55 + Math.random() * 0.1, 0.4, 0.6 + Math.random() * 0.3)
+                    : new THREE.Color(0x111111);
+                } else if (btype === 'Residential') {
+                  wColor = lit
+                    ? new THREE.Color().setHSL(0.1 + Math.random() * 0.1, 0.3, 0.5 + Math.random() * 0.3)
+                    : new THREE.Color(0x111111);
+                } else {
+                  wColor = lit
+                    ? new THREE.Color().setHSL(0.15, 0.2, 0.3 + Math.random() * 0.2)
+                    : new THREE.Color(0x111111);
+                }
+                const winGeo = new THREE.PlaneGeometry(1.5, 2);
+                const winMat = new THREE.MeshBasicMaterial({ color: wColor });
+
+                const localZ = -bldgD / 2 + 2 + wz * 3;
+                const localY = 3 + wy * 4;
+                const fxOff = bldgW / 2 + 0.05;
+
+                // Right face (+X local)
+                const winR = new THREE.Mesh(winGeo, winMat);
+                winR.position.set(
+                  bx2 + cosA * fxOff + sinA * localZ,
+                  localY,
+                  bz2 + sinA * fxOff - cosA * localZ
+                );
+                winR.rotation.y = bAngle + Math.PI / 2;
+                scene.add(winR);
+
+                // Left face (-X local)
+                const winL = new THREE.Mesh(winGeo, winMat);
+                winL.position.set(
+                  bx2 - cosA * fxOff - sinA * localZ,
+                  localY,
+                  bz2 - sinA * fxOff + cosA * localZ
+                );
+                winL.rotation.y = bAngle - Math.PI / 2;
+                scene.add(winL);
+              }
+            }
+          }
+
+          // ── Neon signs on taller buildings ──
+          if (Math.random() > 0.65 && bldgH > 25) {
+            const neonColor = neonColors[Math.floor(Math.random() * neonColors.length)];
+            const neonW = 3 + Math.random() * 6;
+            const neonHt = 1.5 + Math.random() * 2.5;
+            const neonY = 8 + Math.random() * Math.min(bldgH * 0.4, 30);
+            const face = Math.floor(Math.random() * 4);
+            const bAngle = mesh.rotation.y;
+            const cosA = Math.cos(bAngle);
+            const sinA = Math.sin(bAngle);
+
+            const neonGeo = new THREE.PlaneGeometry(neonW, neonHt);
+            const neonMat = new THREE.MeshBasicMaterial({ color: neonColor });
+            const neon = new THREE.Mesh(neonGeo, neonMat);
+
+            if (face === 0) {
+              const off = bldgD / 2 + 0.15;
+              neon.position.set(bx2 - sinA * off, neonY, bz2 + cosA * off);
+              neon.rotation.y = bAngle;
+            } else if (face === 1) {
+              const off = bldgD / 2 + 0.15;
+              neon.position.set(bx2 + sinA * off, neonY, bz2 - cosA * off);
+              neon.rotation.y = bAngle + Math.PI;
+            } else if (face === 2) {
+              const off = bldgW / 2 + 0.15;
+              neon.position.set(bx2 + cosA * off, neonY, bz2 + sinA * off);
+              neon.rotation.y = bAngle + Math.PI / 2;
+            } else {
+              const off = bldgW / 2 + 0.15;
+              neon.position.set(bx2 - cosA * off, neonY, bz2 - sinA * off);
+              neon.rotation.y = bAngle - Math.PI / 2;
+            }
+            scene.add(neon);
+
+            const neonLight = new THREE.PointLight(neonColor, 2, 25);
+            neonLight.position.copy(neon.position);
+            scene.add(neonLight);
+          }
+
+          // Rooftop beacon on tall buildings
+          if (bldgH > 50) {
+            const roofLight = new THREE.PointLight(0xff0000, 1, 30);
+            roofLight.position.set(bx2, bldgH + 1, bz2);
+            scene.add(roofLight);
+            const beacon = new THREE.Mesh(
+              new THREE.SphereGeometry(0.5, 8, 8),
+              new THREE.MeshBasicMaterial({ color: 0xff0000 })
+            );
+            beacon.position.copy(roofLight.position);
+            scene.add(beacon);
+          }
         }
+        d += spacing;
       }
-    }
-
-    // Neon signs on some tall buildings
-    if (Math.random() > 0.65 && height > 25) {
-      const neonColor = neonColors[Math.floor(Math.random() * neonColors.length)];
-      const neonW = 3 + Math.random() * 6;
-      const neonH = 1.5 + Math.random() * 2.5;
-      const neonY = 8 + Math.random() * Math.min(height * 0.4, 30);
-      const face = Math.floor(Math.random() * 4);
-
-      const neonGeo = new THREE.PlaneGeometry(neonW, neonH);
-      const neonMat = new THREE.MeshBasicMaterial({ color: neonColor });
-      const neon = new THREE.Mesh(neonGeo, neonMat);
-
-      if (face === 0) { neon.position.set(cx, neonY, maxZ + 0.15); }
-      else if (face === 1) { neon.position.set(cx, neonY, minZ - 0.15); neon.rotation.y = Math.PI; }
-      else if (face === 2) { neon.position.set(maxX + 0.15, neonY, cz); neon.rotation.y = Math.PI / 2; }
-      else { neon.position.set(minX - 0.15, neonY, cz); neon.rotation.y = -Math.PI / 2; }
-      scene.add(neon);
-
-      const neonLight = new THREE.PointLight(neonColor, 2, 25);
-      neonLight.position.copy(neon.position);
-      scene.add(neonLight);
-    }
-
-    // Rooftop beacon on tall buildings
-    if (height > 50) {
-      const roofLight = new THREE.PointLight(0xff0000, 1, 30);
-      roofLight.position.set(cx, height + 1, cz);
-      scene.add(roofLight);
-      const beacon = new THREE.Mesh(
-        new THREE.SphereGeometry(0.5, 8, 8),
-        new THREE.MeshBasicMaterial({ color: 0xff0000 })
-      );
-      beacon.position.copy(roofLight.position);
-      scene.add(beacon);
+      accDist += segLen;
     }
   }
 
