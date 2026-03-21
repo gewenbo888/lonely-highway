@@ -1,0 +1,15 @@
+{
+  "coord_x": -2,
+  "coord_y": -1,
+  "bounds": {
+    "min_x": -4000.0,
+    "min_z": -2000.0,
+    "max_x": -2000.0,
+    "max_z": 0.0
+  },
+  "road_count": 2,
+  "building_count": 0,
+  "traffic_nodes": 30,
+  "traffic_edges": 168,
+  "signal_positions": []
+}

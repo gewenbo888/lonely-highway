@@ -1,0 +1,277 @@
+{
+  "nodes": [
+    {
+      "id": 0,
+      "x": -3953.6787,
+      "z": -560.74414,
+      "y": 0.0
+    },
+    {
+      "id": 1,
+      "x": -3995.7625,
+      "z": -559.65326,
+      "y": 0.0
+    },
+    {
+      "id": 2,
+      "x": -4061.7822,
+      "z": -559.66437,
+      "y": 0.0
+    },
+    {
+      "id": 3,
+      "x": -4095.6199,
+      "z": -561.35645,
+      "y": 0.0
+    },
+    {
+      "id": 4,
+      "x": -4138.0225,
+      "z": -565.3083,
+      "y": 0.0
+    }
+  ],
+  "edges": [
+    {
+      "id": 0,
+      "from": 0,
+      "to": 1,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 0,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 42.097878
+    },
+    {
+      "id": 1,
+      "from": 1,
+      "to": 2,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 0,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 66.019775
+    },
+    {
+      "id": 2,
+      "from": 2,
+      "to": 3,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 0,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 33.87993
+    },
+    {
+      "id": 3,
+      "from": 3,
+      "to": 4,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 0,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 42.58634
+    },
+    {
+      "id": 4,
+      "from": 0,
+      "to": 1,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 1,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 42.097878
+    },
+    {
+      "id": 5,
+      "from": 1,
+      "to": 2,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 1,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 66.019775
+    },
+    {
+      "id": 6,
+      "from": 2,
+      "to": 3,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 1,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 33.87993
+    },
+    {
+      "id": 7,
+      "from": 3,
+      "to": 4,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 1,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 42.58634
+    },
+    {
+      "id": 8,
+      "from": 0,
+      "to": 1,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 2,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 42.097878
+    },
+    {
+      "id": 9,
+      "from": 1,
+      "to": 2,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 2,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 66.019775
+    },
+    {
+      "id": 10,
+      "from": 2,
+      "to": 3,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 2,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 33.87993
+    },
+    {
+      "id": 11,
+      "from": 3,
+      "to": 4,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 2,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 42.58634
+    },
+    {
+      "id": 12,
+      "from": 0,
+      "to": 1,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 3,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 42.097878
+    },
+    {
+      "id": 13,
+      "from": 1,
+      "to": 2,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 3,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 66.019775
+    },
+    {
+      "id": 14,
+      "from": 2,
+      "to": 3,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 3,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 33.87993
+    },
+    {
+      "id": 15,
+      "from": 3,
+      "to": 4,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 3,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 42.58634
+    },
+    {
+      "id": 16,
+      "from": 0,
+      "to": 1,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 4,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 42.097878
+    },
+    {
+      "id": 17,
+      "from": 1,
+      "to": 2,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 4,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 66.019775
+    },
+    {
+      "id": 18,
+      "from": 2,
+      "to": 3,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 4,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 33.87993
+    },
+    {
+      "id": 19,
+      "from": 3,
+      "to": 4,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 4,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 42.58634
+    },
+    {
+      "id": 20,
+      "from": 0,
+      "to": 1,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 5,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 42.097878
+    },
+    {
+      "id": 21,
+      "from": 1,
+      "to": 2,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 5,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 66.019775
+    },
+    {
+      "id": 22,
+      "from": 2,
+      "to": 3,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 5,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 33.87993
+    },
+    {
+      "id": 23,
+      "from": 3,
+      "to": 4,
+      "speed_limit_kmh": 60.0,
+      "lane_index": 5,
+      "road_id": 25423077,
+      "layer": 0,
+      "length": 42.58634
+    }
+  ],
+  "signals": []
+}
