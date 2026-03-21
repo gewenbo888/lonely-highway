@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6">
+  <node id="1" lat="22.530" lon="114.050"/>
+  <node id="2" lat="22.531" lon="114.051"/>
+  <node id="3" lat="22.532" lon="114.050"/>
+  <node id="4" lat="22.530" lon="114.049"/>
+  <node id="5" lat="22.530" lon="114.051"/>
+  <node id="6" lat="22.531" lon="114.051"/>
+  <node id="7" lat="22.531" lon="114.049"/>
+  <node id="8" lat="22.530" lon="114.049"/>
+  <node id="100" lat="22.5305" lon="114.0505">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <way id="10">
+    <nd ref="1"/>
+    <nd ref="2"/>
+    <nd ref="3"/>
+    <tag k="highway" v="primary"/>
+    <tag k="lanes" v="4"/>
+    <tag k="maxspeed" v="60"/>
+    <tag k="name" v="Shennan Road"/>
+  </way>
+  <way id="11">
+    <nd ref="4"/>
+    <nd ref="5"/>
+    <tag k="highway" v="residential"/>
+    <tag k="oneway" v="yes"/>
+  </way>
+  <way id="20">
+    <nd ref="5"/>
+    <nd ref="6"/>
+    <nd ref="7"/>
+    <nd ref="8"/>
+    <nd ref="5"/>
+    <tag k="building" v="commercial"/>
+    <tag k="height" v="45"/>
+  </way>
+</osm>
