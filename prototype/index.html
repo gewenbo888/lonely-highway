@@ -374,19 +374,19 @@ function createCityFromData(data) {
     const height = bld.height || 10;
     const btype = bld.type || 'Other';
 
-    // Choose building color by type
+    // Choose building color by type — brighter so walls are visible at night
     let wallColor, windowChance;
     if (btype === 'Commercial') {
-      wallColor = new THREE.Color().setHSL(0.6, 0.08, 0.12 + Math.random() * 0.04);
+      wallColor = new THREE.Color().setHSL(0.6, 0.12, 0.22 + Math.random() * 0.06);
       windowChance = 0.6;
     } else if (btype === 'Residential') {
-      wallColor = new THREE.Color().setHSL(0.08 + Math.random() * 0.05, 0.15, 0.08 + Math.random() * 0.04);
+      wallColor = new THREE.Color().setHSL(0.08 + Math.random() * 0.05, 0.15, 0.18 + Math.random() * 0.06);
       windowChance = 0.35;
     } else if (btype === 'Industrial') {
-      wallColor = new THREE.Color().setHSL(0, 0, 0.05 + Math.random() * 0.03);
+      wallColor = new THREE.Color().setHSL(0, 0, 0.15 + Math.random() * 0.05);
       windowChance = 0.15;
     } else {
-      wallColor = new THREE.Color().setHSL(Math.random(), 0.05, 0.05 + Math.random() * 0.04);
+      wallColor = new THREE.Color().setHSL(Math.random(), 0.08, 0.15 + Math.random() * 0.06);
       windowChance = 0.2;
     }
 
@@ -401,10 +401,8 @@ function createCityFromData(data) {
     const extrudeSettings = { depth: height, bevelEnabled: false };
     const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
 
-    const mat = new THREE.MeshStandardMaterial({
+    const mat = new THREE.MeshBasicMaterial({
       color: wallColor,
-      roughness: 0.8,
-      metalness: 0.3,
     });
     const mesh = new THREE.Mesh(geo, mat);
     // ExtrudeGeometry extrudes along Z in shape space; we need to rotate so it goes up (Y)
