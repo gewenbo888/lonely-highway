@@ -408,22 +408,26 @@ function createTrafficLight(x, z) {
 function createCar() {
   car = new THREE.Group();
 
-  // Car body
-  const bodyMat = new THREE.MeshStandardMaterial({
-    color: 0x4477dd,
-    emissive: 0x111133,
-    roughness: 0.3,
-    metalness: 0.7,
-  });
+  // Car body — use MeshBasicMaterial so it's always visible regardless of lighting
+  const bodyMat = new THREE.MeshBasicMaterial({ color: 0x3366cc });
 
-  // Main body
+  // Main body (lower)
   const mainBody = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 4.5), bodyMat);
   mainBody.position.y = 0.6;
   car.add(mainBody);
 
-  // Cabin
-  const cabinMat = new THREE.MeshStandardMaterial({
-    color: 0x88aacc, roughness: 0.05, metalness: 0.9, transparent: true, opacity: 0.5
+  // Hood/trunk accent
+  const accentMat = new THREE.MeshBasicMaterial({ color: 0x2255aa });
+  const hood = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.1, 1.8), accentMat);
+  hood.position.set(0, 1.01, 1.2);
+  car.add(hood);
+  const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.1, 1.2), accentMat);
+  trunk.position.set(0, 1.01, -1.5);
+  car.add(trunk);
+
+  // Cabin (windshield glow)
+  const cabinMat = new THREE.MeshBasicMaterial({
+    color: 0x99bbdd, transparent: true, opacity: 0.4
   });
   const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.7, 2.2), cabinMat);
   cabin.position.set(0, 1.25, -0.2);
@@ -431,7 +435,7 @@ function createCar() {
 
   // Wheels
   const wheelGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.25, 12);
-  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.7, metalness: 0.5 });
+  const wheelMat = new THREE.MeshBasicMaterial({ color: 0x444444 });
   const wheelPositions = [[-0.9, 0.35, 1.4], [0.9, 0.35, 1.4], [-0.9, 0.35, -1.4], [0.9, 0.35, -1.4]];
   wheelPositions.forEach(pos => {
     const wheel = new THREE.Mesh(wheelGeo, wheelMat);
@@ -478,9 +482,9 @@ function createCar() {
   car.add(headlightR);
   car.add(headlightR.target);
 
-  // Subtle fill light so car is always visible
-  const carFill = new THREE.PointLight(0x6688cc, 1.5, 15);
-  carFill.position.set(0, 2.5, 0);
+  // Strong fill light so car and nearby road are visible
+  const carFill = new THREE.PointLight(0xaaccff, 4, 25);
+  carFill.position.set(0, 3, 0);
   car.add(carFill);
 
   car.position.set(roadWidth * 0.25, 0, 0);
