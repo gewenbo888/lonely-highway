@@ -1,0 +1,7 @@
+{
+  "name": "LonelyHighway.Camera",
+  "rootNamespace": "LonelyHighway.Camera",
+  "references": ["LonelyHighway.Vehicle"],
+  "includePlatforms": [],
+  "autoReferenced": true
+}
