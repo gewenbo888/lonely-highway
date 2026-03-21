@@ -103,3 +103,48 @@ pub struct ParsedOsmData {
     pub crosswalks: Vec<Crosswalk>,
     pub origin: Option<Coordinate>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn road_default_surface_is_asphalt() {
+        let road = Road {
+            id: 1,
+            nodes: vec![],
+            highway_class: HighwayClass::Primary,
+            lanes_forward: 3,
+            lanes_backward: 3,
+            speed_limit_kmh: 60.0,
+            surface: SurfaceType::Asphalt,
+            is_oneway: false,
+            layer: 0,
+            is_bridge: false,
+            is_tunnel: false,
+            name: None,
+        };
+        assert_eq!(road.surface, SurfaceType::Asphalt);
+    }
+
+    #[test]
+    fn building_height_from_levels() {
+        let b = Building {
+            id: 1,
+            footprint: vec![],
+            height: 30.0,
+            building_type: BuildingType::Commercial,
+        };
+        assert_eq!(b.height, 30.0);
+    }
+
+    #[test]
+    fn coordinate_to_meters_near_shenzhen() {
+        let origin = Coordinate { lat: 22.5, lon: 114.0 };
+        let point = Coordinate { lat: 22.501, lon: 114.001 };
+        let (dx, dy) = point.to_local_meters(&origin);
+        // ~111m per degree lat, ~102m per degree lon at 22.5N
+        assert!((dy - 111.0).abs() < 5.0);
+        assert!((dx - 102.0).abs() < 5.0);
+    }
+}
