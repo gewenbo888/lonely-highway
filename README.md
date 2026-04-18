@@ -265,6 +265,11 @@ Tested on **Windows 10** with Git Bash. All hooks use POSIX-compatible patterns 
 
 *This project is under active development. The agent architecture, skills, and coordination system are solid and usable today — but there's more coming.*
 
+## Links
+
+- [Live Site](https://prototype-indol-five.vercel.app)
+- [GitHub Repository](https://github.com/gewenbo888/lonely-highway)
+
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
